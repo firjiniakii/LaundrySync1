@@ -1,0 +1,10 @@
+{
+  "name": "LaundrySync - Manajemen Laundry",
+  "short_name": "LaundrySync",
+  "description": "Kelola pesanan, pembayaran, proses laundry, dan penyerahan dalam satu ruang kerja.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#12304a",
+  "icons": []
+}

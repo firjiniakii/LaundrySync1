@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#12304a">
+  <meta name="description" content="LaundrySync - Sistem manajemen usaha laundry dengan sinkronisasi online dan mode offline.">
+  <title>LaundrySync | Sistem Manajemen Laundry</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="config.js"></script>
+  <script defer src="backend.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+
+  <div class="auth-screen hidden" id="authScreen">
+    <div class="auth-card">
+      <div class="auth-brand"><div class="brand-mark"><span class="brand-bubble"></span><span class="brand-bubble small"></span></div><div><strong>Laundry<span>Sync</span></strong><small>AKSES AKUN LAUNDRYSYNC</small></div></div>
+      <span class="eyebrow">RUANG KERJA ONLINE</span>
+      <h1 id="authTitle">Masuk ke LaundrySync</h1>
+      <p class="auth-intro" id="authIntro">Masuk menggunakan akun masing-masing. Nama dan jabatan Anda akan tampil di ruang kerja.</p>
+      <form id="authForm">
+        <div id="signupNameField" class="hidden">
+          <label for="authFullName">Nama lengkap</label>
+          <input id="authFullName" type="text" maxlength="80" autocomplete="name" placeholder="Masukkan nama lengkap Anda">
+        </div>
+        <label for="authEmail">Alamat email</label>
+        <input id="authEmail" type="email" autocomplete="username" placeholder="you@example.com" required>
+        <label for="authPassword">Kata sandi</label>
+        <input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="Minimal 6 karakter" required>
+        <button class="btn btn-primary full-width auth-submit" id="authSubmit" type="submit">Masuk</button>
+      </form>
+      <p class="auth-error hidden" id="authError" role="alert"></p>
+      <p class="auth-switch" id="authSwitchText">Belum punya akun LaundrySync? <button type="button" id="authSwitch">Buat akun</button></p>
+      <button class="btn btn-secondary full-width" id="localModeButton" type="button">Lanjutkan dengan Mode Lokal (Offline)</button>
+      <p class="auth-footnote">Mode Lokal menyimpan transaksi hanya pada perangkat ini. Sinkronisasi dan akun tim memerlukan koneksi Supabase.</p>
+    </div>
+  </div>
+
+  <div class="auth-screen hidden" id="workspaceSetupScreen">
+    <div class="auth-card workspace-setup-card">
+      <div class="auth-brand"><div class="brand-mark"><span class="brand-bubble"></span><span class="brand-bubble small"></span></div><div><strong>Laundry<span>Sync</span></strong><small>PENGATURAN RUANG KERJA</small></div></div>
+      <span class="eyebrow">MULAI</span>
+      <h1>Atur ruang kerja laundry Anda</h1>
+      <p class="auth-intro">Buat ruang kerja baru sebagai Admin, atau bergabung dengan tim yang sudah ada menggunakan kode undangan.</p>
+      <form id="createWorkspaceForm">
+        <label for="newWorkspaceName">Nama usaha laundry</label>
+        <input id="newWorkspaceName" maxlength="80" placeholder="Contoh: Laundry Bersih" required>
+        <button class="btn btn-primary full-width auth-submit" type="submit">Buat ruang kerja sebagai Admin</button>
+      </form>
+      <div class="scan-divider"><span>ATAU BERGABUNG DENGAN TIM</span></div>
+      <form id="quickJoinForm">
+        <label for="quickJoinCode">Kode undangan dari Admin</label>
+        <input id="quickJoinCode" maxlength="20" placeholder="Masukkan kode undangan">
+        <button class="btn btn-secondary full-width" type="submit">Gabung ke ruang kerja</button>
+      </form>
+      <p class="auth-error hidden" id="workspaceSetupError" role="alert"></p>
+    </div>
+  </div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span class="brand-bubble"></span><span class="brand-bubble small"></span></div>
+        <div><strong>Laundry<span>Sync</span></strong><small>SISTEM MANAJEMEN LAUNDRY</small></div>
+      </div>
+      <div class="shop-card">
+        <div class="shop-avatar">LS</div>
+        <div><strong id="workspaceName">Ruang Kerja Laundry Anda</strong><small id="workspaceRole">Memuat ruang kerja…</small></div>
+        <span class="chevron">⌄</span>
+      </div>
+      <div class="nav-label">RUANG KERJA</div>
+      <nav class="nav-menu">
+        <button class="nav-item active" data-page="dashboard"><span class="nav-icon">▦</span> Dasbor</button>
+        <button class="nav-item" data-page="transactions"><span class="nav-icon">▤</span> Transaksi <span class="nav-count" id="navOrderCount">0</span></button>
+        <button class="nav-item" data-page="offline"><span class="nav-icon">⇄</span> Offline & Sinkronisasi <span class="nav-dot"></span></button>
+        <button class="nav-item" data-page="verification"><span class="nav-icon">▦</span> Verifikasi QR</button>
+      </nav>
+      <div class="nav-label second-label">PENGELOLAAN</div>
+      <nav class="nav-menu">
+        <button class="nav-item" data-page="activity"><span class="nav-icon">◷</span> Riwayat Aktivitas</button>
+        <button class="nav-item" data-page="team" id="teamNav"><span class="nav-icon">♙</span> Tim & Ruang Kerja</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="help-card"><div class="help-icon">?</div><div><strong>Butuh bantuan?</strong><small>Pusat bantuan LaundrySync</small></div></div>
+        <button class="profile profile-button" id="profileButton" type="button"><div class="profile-avatar" id="profileInitial">U</div><div><strong id="profileName">Akun Anda</strong><small id="profileRole">Akun Staf</small></div><span class="profile-more">⚙</span></button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="top-left">
+          <button class="mobile-menu" id="mobileMenu" aria-label="Buka menu navigasi">☰</button>
+          <div><div class="eyebrow" id="workspaceEyebrow">LAUNDRYSYNC / RUANG KERJA</div><div class="page-heading" id="pageHeading">Dasbor</div></div>
+        </div>
+        <div class="top-actions">
+          <div class="connection-pill" id="connectionPill"><span class="connection-dot"></span><span id="connectionText">Online</span></div>
+          <button class="icon-button" id="helpButton" title="Tentang LaundrySync">?</button>
+          <button class="account-button hidden" id="accountButton" title="Keluar">Keluar</button>
+          <div class="top-avatar" id="topAvatar">U</div>
+        </div>
+      </header>
+
+      <section class="page active" id="page-dashboard">
+        <div class="welcome-row">
+          <div><h1>Selamat datang, <span id="welcomeName">Anda</span> <span class="wave">✦</span></h1><p>Berikut ringkasan aktivitas laundry Anda hari ini.</p></div>
+          <button class="btn btn-primary" id="newOrderTop"><span>＋</span> Transaksi Baru</button>
+        </div>
+        <div class="notice-banner" id="dashboardNotice">
+          <div class="notice-icon">↗</div>
+          <div><strong>Kelola usaha laundry dengan lebih mudah</strong><p>Transaksi tersimpan di perangkat ini. Data yang belum tersinkron akan dikirim saat koneksi internet tersedia.</p></div>
+          <button class="text-button" data-goto="offline">Lihat status sinkronisasi →</button>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card"><div class="stat-top"><span>Total Transaksi</span><span class="stat-icon blue">▤</span></div><strong id="statTotal">0</strong><small>Jumlah pesanan yang tercatat</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Sedang Diproses</span><span class="stat-icon purple">◷</span></div><strong id="statProgress">0</strong><small>Pesanan yang sedang dikerjakan</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Siap Diambil</span><span class="stat-icon green">✓</span></div><strong id="statReady">0</strong><small>Menunggu diambil pelanggan</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Menunggu Sinkronisasi</span><span class="stat-icon amber">⇄</span></div><strong id="statPending">0</strong><small>Tersimpan di perangkat, belum tersinkron</small></article>
+        </div>
+        <div class="content-grid">
+          <section class="panel recent-panel">
+            <div class="panel-heading"><div><h2>Transaksi Terbaru</h2><p>Daftar pesanan laundry terbaru</p></div><button class="text-button" data-goto="transactions">Lihat Semua →</button></div>
+            <div class="table-wrap"><table><thead><tr><th>KODE PESANAN</th><th>PELANGGAN</th><th>LAYANAN</th><th>STATUS</th><th>SINKRONISASI</th></tr></thead><tbody id="recentRows"></tbody></table></div>
+            <div class="empty-state" id="recentEmpty"><div class="empty-icon">▤</div><strong>Belum ada transaksi</strong><p>Buat pesanan laundry pertama untuk melihatnya di sini.</p><button class="btn btn-secondary btn-small" id="emptyCreate">Buat Transaksi</button></div>
+          </section>
+          <section class="panel quick-panel">
+            <div class="panel-heading"><div><h2>Akses Cepat</h2><p>Menu yang sering digunakan</p></div></div>
+            <button class="quick-action" id="quickCreate"><span class="quick-icon teal">＋</span><span><strong>Buat Transaksi</strong><small>Catat pesanan laundry baru</small></span><b>›</b></button>
+            <button class="quick-action" data-goto="offline"><span class="quick-icon orange">⇄</span><span><strong>Offline & Sinkronisasi</strong><small>Periksa koneksi dan data tertunda</small></span><b>›</b></button>
+            <button class="quick-action" data-goto="verification"><span class="quick-icon violet">▦</span><span><strong>Verifikasi Pesanan</strong><small>Periksa pesanan sebelum diserahkan</small></span><b>›</b></button>
+            <div class="tip-box"><span>✦</span><div><strong>Tips Penting</strong><p>Selalu periksa kode pesanan dan data pelanggan sebelum menyerahkan laundry.</p></div></div>
+          </section>
+        </div>
+        <div class="info-footnote"><span class="info-mark">i</span> Sistem manajemen laundry · Pantau seluruh transaksi dan aktivitas usaha Anda.</div>
+      </section>
+
+      <section class="page" id="page-transactions">
+        <div class="page-intro"><div><h1>Transaksi</h1><p>Kelola pesanan laundry dan pantau proses pengerjaannya.</p></div><button class="btn btn-primary" id="newOrderList">＋ Transaksi Baru</button></div>
+        <div class="filter-row"><div class="search-box"><span>⌕</span><input id="transactionSearch" placeholder="Cari kode pesanan atau nama pelanggan..." aria-label="Cari transaksi"></div><select id="statusFilter"><option value="all">Semua Status</option><option value="Received">Diterima</option><option value="Washing">Dicuci</option><option value="Drying">Dikeringkan</option><option value="Ironing">Disetrika</option><option value="Ready for pickup">Siap Diambil</option><option value="Completed">Selesai</option></select></div>
+        <section class="panel"><div class="table-wrap"><table class="full-table"><thead><tr><th>KODE PESANAN</th><th>PELANGGAN</th><th>TANGGAL</th><th>LAYANAN</th><th>BERAT</th><th>TOTAL</th><th>STATUS</th><th>SINKRONISASI</th><th>AKSI</th></tr></thead><tbody id="allRows"></tbody></table></div><div class="empty-state" id="listEmpty"><div class="empty-icon">▤</div><strong>Transaksi tidak ditemukan</strong><p>Coba kata kunci lain atau buat pesanan baru.</p></div></section>
+      </section>
+
+      <section class="page" id="page-offline">
+        <div class="page-intro"><div><h1>Offline & Sinkronisasi</h1><p>Tetap catat pesanan meskipun koneksi internet sedang tidak tersedia.</p></div></div>
+        <div class="offline-hero" id="offlineHero"><div class="offline-hero-icon" id="offlineHeroIcon">✓</div><div class="offline-hero-copy"><span class="eyebrow">STATUS KONEKSI</span><h2 id="offlineHeroTitle">Koneksi Tersambung</h2><p id="offlineHeroText">Perangkat Anda terhubung ke internet. Data yang tertunda siap disinkronkan.</p></div><span class="status-label" id="offlineHeroBadge">ONLINE</span></div>
+        <div class="offline-grid">
+          <section class="panel sync-panel"><div class="panel-heading"><div><h2>Ringkasan Sinkronisasi</h2><p>Transaksi di perangkat yang menunggu sinkronisasi</p></div><span class="sync-symbol">⇄</span></div><div class="sync-number-row"><strong id="pendingBig">0</strong><span>transaksi tertunda</span></div><div class="progress-track"><div class="progress-fill" id="syncProgress"></div></div><div class="sync-meta"><span id="syncMetaText">Semua transaksi sudah tersinkron</span><span id="syncPercent">100%</span></div><button class="btn btn-primary sync-button" id="syncButton">⇄ Sinkronkan Sekarang</button><p class="small-note" id="syncMessage">Hubungkan proyek Supabase Anda untuk mengaktifkan sinkronisasi data online.</p>
+          <div class="cloud-setup-hint" id="cloudSetupHint">Supabase belum terhubung. Ikuti panduan pengaturan pada file SETUP_SUPABASE.md.</div></section>
+          <section class="panel">
+            <div class="panel-heading"><div><h2>Saat Offline</h2><p>Pesanan tetap dapat dicatat tanpa koneksi internet.</p></div><span class="quick-icon orange">⇄</span></div>
+            <div class="how-it-works">
+              <strong>Proses penyimpanan data</strong>
+              <div class="how-step"><span>1</span>Pesanan disimpan terlebih dahulu di perangkat ini.</div>
+              <div class="how-step"><span>2</span>Data yang belum terkirim masuk ke antrean sinkronisasi.</div>
+              <div class="how-step"><span>3</span>Saat internet kembali, data akan dikirim ke ruang kerja online.</div>
+            </div>
+          </section>
+        </div>
+        <section class="panel pending-panel"><div class="panel-heading"><div><h2>Antrean Transaksi Lokal</h2><p>Pesanan yang tersimpan di perangkat ini</p></div><span class="queue-count" id="queueCount">0 data</span></div><div id="queueList" class="queue-list"></div><div class="empty-state compact-empty" id="queueEmpty"><div class="empty-icon">✓</div><strong>Semua Data Sudah Tersinkron</strong><p>Tidak ada transaksi yang menunggu sinkronisasi.</p></div></section>
+        <div class="info-footnote"><span class="info-mark">i</span> Data yang belum tersinkron akan tetap tersimpan di perangkat ini hingga koneksi internet tersedia.</div>
+      </section>
+
+      <section class="page" id="page-verification">
+        <div class="page-intro"><div><h1>Verifikasi Pesanan dengan QR</h1><p>Pastikan pesanan yang benar sebelum diserahkan kepada pelanggan.</p></div></div>
+        <div class="verify-grid">
+          <section class="panel verify-search-panel"><div class="panel-heading"><div><h2>Pindai atau Cari Pesanan</h2><p>Gunakan kamera untuk memindai kode QR pesanan atau masukkan kode pesanan secara manual.</p></div><span class="quick-icon violet">▦</span></div><div class="scanner-actions"><button class="btn btn-primary" id="startScanner" type="button">▣ Mulai Pemindai Kamera</button><button class="btn btn-secondary hidden" id="stopScanner" type="button">Hentikan Kamera</button></div><div id="qr-reader" class="qr-reader hidden"></div><div id="scannerMessage" class="scanner-message">Pemindaian kamera memerlukan izin akses kamera dan aplikasi harus dibuka melalui localhost atau HTTPS.</div><div class="scan-divider"><span>ATAU MASUKKAN KODE PESANAN</span></div><form id="verifyForm"><label for="verifyId">Kode Pesanan</label><div class="input-with-button"><input id="verifyId" placeholder="Contoh: LS-1001" autocomplete="off" required><button class="btn btn-primary" type="submit">Verifikasi</button></div></form><div class="verify-hint"><span>ⓘ</span> Kamera akan membaca kode QR dan mencari data pesanan yang tersimpan di perangkat ini.</div><div id="verifyResult" class="verify-result hidden"></div></section>
+          <section class="panel qr-info-panel"><div class="qr-info-icon">▦</div><h2>Mengapa Menggunakan Verifikasi QR?</h2><p>Setiap transaksi memiliki kode pesanan dan QR unik. Staf dapat memeriksa pesanan sebelum menyerahkan laundry kepada pelanggan.</p><ul><li>Mengurangi risiko tertukarnya pesanan pelanggan</li><li>Memastikan status pesanan dan pengambilan</li><li>Mempermudah proses verifikasi pesanan</li></ul></section>
+        </div>
+      </section>
+
+      <section class="page" id="page-activity">
+        <div class="page-intro"><div><h1>Riwayat Aktivitas</h1><p>Catatan aktivitas yang dilakukan oleh pengguna.</p></div><div class="header-button-group"><button class="btn btn-secondary" id="exportData">↓ Ekspor Data</button><button class="btn btn-secondary" id="clearActivity">Hapus Riwayat</button></div></div>
+        <section class="panel"><div class="panel-heading"><div><h2>Aktivitas Terbaru</h2><p>Catatan transaksi dan sinkronisasi</p></div></div><div id="activityList" class="activity-list"></div><div class="empty-state" id="activityEmpty"><div class="empty-icon">◷</div><strong>Belum ada aktivitas</strong><p>Aktivitas Anda akan tercatat di sini.</p></div></section>
+      </section>
+
+
+      <section class="page" id="page-team">
+        <div class="page-intro"><div><h1>Tim & Ruang Kerja</h1><p>Kelola ruang kerja laundry, akses staf, dan profil akun Anda.</p></div></div>
+        <div class="team-grid">
+          <section class="panel team-workspace-panel">
+            <div class="panel-heading"><div><h2>Informasi Ruang Kerja</h2><p>Ruang kerja bersama untuk usaha laundry Anda</p></div><span class="quick-icon teal">⌂</span></div>
+            <form id="workspaceForm" class="team-form">
+              <label for="workspaceNameInput">Nama usaha laundry</label>
+              <input id="workspaceNameInput" maxlength="80" placeholder="Contoh: Laundry Bersih" required>
+              <button class="btn btn-primary" id="saveWorkspace" type="submit">Simpan Nama Ruang Kerja</button>
+              <p class="small-note" id="workspaceSaveMessage">Hanya Admin yang dapat mengubah nama ruang kerja.</p>
+            </form>
+          </section>
+          <section class="panel team-profile-panel">
+            <div class="panel-heading"><div><h2>Profil Saya</h2><p>Nama Anda akan terlihat oleh anggota tim lainnya.</p></div><span class="quick-icon violet">♙</span></div>
+            <form id="profileForm" class="team-form">
+              <label for="profileNameInput">Nama Tampilan</label>
+              <input id="profileNameInput" maxlength="80" placeholder="Nama lengkap" required>
+              <label for="profileEmailInput">Email Akun</label>
+              <input id="profileEmailInput" type="email" disabled>
+              <button class="btn btn-secondary" type="submit">Perbarui Nama</button>
+            </form>
+          </section>
+        </div>
+        <section class="panel team-anggota-panel">
+          <div class="panel-heading"><div><h2>Anggota Ruang Kerja</h2><p>Pengguna yang memiliki akses ke ruang kerja laundry ini.</p></div><span class="queue-count" id="memberCount">0 anggota</span></div>
+          <div id="memberList" class="member-list"></div>
+          <div class="empty-state compact-empty hidden" id="membersEmpty"><strong>Belum ada anggota</strong></div>
+        </section>
+        <section class="panel invite-panel" id="invitePanel">
+          <div class="panel-heading"><div><h2>Undang Staf</h2><p>Buat kode undangan sekali pakai untuk akun staf baru.</p></div><span class="quick-icon orange">＋</span></div>
+          <div class="invite-controls">
+            <div class="form-field"><label for="inviteRole">Jabatan Staf</label><select id="inviteRole"><option value="cashier">Kasir</option><option value="production">Produksi</option><option value="delivery">Kurir</option></select></div>
+            <button class="btn btn-primary" id="createInvite" type="button">Buat Kode Undangan</button>
+          </div>
+          <div id="inviteResult" class="invite-result hidden"><span class="eyebrow">KODE UNDANGAN SEKALI PAKAI</span><strong id="inviteCodeValue"></strong><p>Bagikan kode ini kepada staf. Mereka harus membuat akun LaundrySync sendiri, lalu memasukkan kode ini untuk bergabung ke ruang kerja Anda.</p><button class="btn btn-secondary btn-small" id="copyInvite" type="button">Salin Kode</button></div>
+        </section>
+        <section class="panel join-panel hidden" id="joinPanel">
+          <div class="panel-heading"><div><h2>Gabung ke Ruang Kerja</h2><p>Masukkan kode undangan yang diberikan oleh Admin laundry Anda.</p></div></div>
+          <form id="joinWorkspaceForm" class="invite-controls">
+            <div class="form-field"><label for="joinCode">Kode Undangan</label><input id="joinCode" maxlength="20" placeholder="Paste invite code" required></div>
+            <button class="btn btn-primary" type="submit">Gabung ke Ruang Kerja</button>
+          </form>
+        </section>
+        <section class="panel role-guide-panel">
+          <div class="panel-heading"><div><h2>Hak Akses Berdasarkan Jabatan</h2><p>Berikut hak akses untuk setiap jabatan dalam tim.</p></div></div>
+          <div class="role-guide">
+            <div><strong>Admin</strong><span>Mengelola ruang kerja, mengundang staf, serta mengelola seluruh pesanan.</span></div>
+            <div><strong>Kasir</strong><span>Membuat transaksi, mencatat data pelanggan dan pembayaran, serta melihat seluruh pesanan.</span></div>
+            <div><strong>Produksi</strong><span>Melihat pesanan dan memperbarui proses pencucian hingga siap diambil.</span></div>
+            <div><strong>Kurir</strong><span>Melihat pesanan dan mengonfirmasi penyerahan hanya jika laundry sudah siap dan pembayaran telah lunas.</span></div>
+          </div>
+        </section>
+      </section>
+      <footer class="app-footer"><span>© 2026 LaundrySync</span><span>Sistem Manajemen Laundry · Versi 2.0</span></footer>
+    </main>
+  </div>
+
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-item active" data-page="dashboard"><span>▦</span>Beranda</button>
+    <button class="mobile-nav-item" data-page="transactions"><span>▤</span>Pesanan</button>
+    <button class="mobile-add" id="mobileAdd">＋</button>
+    <button class="mobile-nav-item" data-page="offline"><span>⇄</span>Sinkronisasi</button>
+    <button class="mobile-nav-item" data-page="activity"><span>◷</span>Aktivitas</button>
+  </nav>
+
+  <div class="modal-backdrop hidden" id="orderModal">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header"><div><span class="eyebrow">PESANAN BARU</span><h2 id="modalTitle">Buat Transaksi</h2><p>Masukkan data laundry pelanggan.</p></div><button class="close-button" id="closeModal" aria-label="Tutup">×</button></div>
+      <form id="orderForm">
+        <div class="form-grid">
+          <div class="form-field full"><label for="customerName">Nama Pelanggan <em>*</em></label><input id="customerName" maxlength="60" placeholder="Masukkan nama pelanggan" required></div>
+          <div class="form-field"><label for="customerPhone">Nomor WhatsApp</label><input id="customerPhone" maxlength="20" placeholder="Contoh: 08123456789"></div>
+          <div class="form-field"><label for="laundryWeight">Berat (kg) <em>*</em></label><input id="laundryWeight" type="number" min="0.1" max="100" step="0.1" placeholder="e.g. 3.5" required></div>
+          <div class="form-field"><label for="serviceType">Jenis Layanan <em>*</em></label><select id="serviceType" required><option value="">Pilih layanan</option><option value="Regular Wash" data-price="7000">Cuci Reguler · Rp 7.000/kg</option><option value="Wash & Iron" data-price="10000">Cuci & Setrika · Rp 10.000/kg</option><option value="Express Wash" data-price="15000">Cuci Ekspres · Rp 15.000/kg</option></select></div>
+          <div class="form-field"><label for="paymentStatus">Status Pembayaran</label><select id="paymentStatus"><option value="Unpaid">Belum Lunas</option><option value="Paid">Lunas</option><option value="Deposit">Uang Muka</option></select></div>
+          <div class="form-field full"><label for="orderNotes">Catatan (opsional)</label><textarea id="orderNotes" rows="2" maxlength="180" placeholder="Catatan khusus atau informasi tambahan"></textarea></div>
+        </div>
+        <div class="price-preview"><span>Total Biaya</span><strong id="pricePreview">Rp 0</strong><small>Total biaya dihitung otomatis berdasarkan berat dan jenis layanan.</small></div>
+        <div class="form-error hidden" id="formError" role="alert"></div>
+        <div class="modal-actions"><button type="button" class="btn btn-secondary" id="cancelOrder">Batal</button><button type="submit" class="btn btn-primary">Simpan Transaksi</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="qrModal">
+    <section class="modal qr-modal" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle">
+      <button class="close-button qr-close" id="closeQr" aria-label="Tutup">×</button>
+      <span class="eyebrow">KODE QR PESANAN</span><h2 id="qrModalTitle">Transaksi Tersimpan</h2><p class="modal-subtitle">Gunakan kode unik ini untuk memverifikasi pesanan saat pengambilan.</p>
+      <div class="qr-box"><div id="qrcode"></div></div>
+      <strong class="qr-order-id" id="qrOrderId"></strong><div class="qr-customer" id="qrCustomer"></div>
+      <div class="qr-note">Pindai kode ini melalui menu Verifikasi QR untuk mencari data pesanan. Struk tetap dapat dicetak saat offline.</div>
+      <button class="btn btn-primary full-width" id="printReceiptAndQr">Cetak Struk + QR (58mm)</button>
+      <button class="btn btn-secondary full-width" id="printReceiptOnly">Cetak Struk Saja (58mm)</button>
+      <button class="btn btn-secondary full-width" id="saveReceiptPdf">Simpan Struk + QR sebagai PDF</button>
+      <button class="btn btn-secondary full-width" id="doneQr">Selesai</button>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
